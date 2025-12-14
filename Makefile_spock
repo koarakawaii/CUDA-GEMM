@@ -17,6 +17,7 @@ LDFLAGS :=-lm -lcublas -lgomp
 
 #SUFFIX=_RTX5090
 TIMING_FLAG=-DTIMING_FLAG
+PERFORMANCE_FLAG=-DPERFORMANCE
 NVCC    := $(CUDIR)/bin/nvcc
 NVFLAGS := -g -dc -O3 -Xcompiler -fopenmp -I$(CUDIR)/include -m64 $(NVFLAGS_ARCH) -Xptxas -v
 
