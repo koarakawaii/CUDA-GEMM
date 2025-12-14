@@ -31,7 +31,7 @@ using namespace nvcuda;
 #define WARPSIZE     32
 #define THREADTILE   8
 #define THREADTILE_X 8
-#define THREADTILE_Y 8
+#define THREADTILE_Y 16
 #define SKEW_MINE    8
 
 //// for RTX5090
@@ -66,7 +66,7 @@ typedef float4 copy_batch_t;
 const int WMMA_M              = 16;
 const int WMMA_N              = 16;
 const int WMMA_K              = 8;
-const int warpK_stride_shared = 2; // use shared memory to cache matrix A and B; warpK_stride_shared is the sum of the number of WMMA_M*WMMA_K blocks for matrix A + WMMA_K*WMMA_N blocks for matrix B that can be cached by shared memory
+const int warpK_stride_shared = 4; // use shared memory to cache matrix A and B; warpK_stride_shared is the sum of the number of WMMA_M*WMMA_K blocks for matrix A + WMMA_K*WMMA_N blocks for matrix B that can be cached by shared memory
 
 const long  seed              = 152897564;
 const float alpha             = 1.0f;
@@ -635,7 +635,8 @@ __global__ void
 }
 
 
-/* WMMA GPU kernel: For tf32 to float precision conversion, we must manually do it via inline function __float_to_tf32. Please refer to: https://docs.nvidia.com/cuda/cuda-c-programming-guide/#alternate-floating-point . */
+/* WMMA GPU kernel, modified based on this example: https://github.com/NVIDIA/cuda-samples/tree/master/Samples/3_CUDA_Features/cudaTensorCoreGemm
+   For tf32 to float precision conversion, we must manually do it via inline function __float_to_tf32. Please refer to: https://docs.nvidia.com/cuda/cuda-c-programming-guide/#alternate-floating-point . */
 #define WARP_REPEAT_X 4
 #define WARP_REPEAT_Y 2
 __global__ void wmma_kernel(T_ELEM_IN *a, T_ELEM_IN *b, T_ELEM_OUT *c,

@@ -30,32 +30,32 @@ using namespace nvcuda;
 #define WARPSIZE     32
 #define THREADTILE   32
 #define THREADTILE_X 8
-#define THREADTILE_Y 8
+#define THREADTILE_Y 16
 #define SKEW_MINE    8
 
 //// for RTX5090
-//#define BM_Warptiling 128
-//#define BK_Warptiling 64
-//#define BN_Warptiling 128
-//#define WM_Warptiling 64
-//#define WN_Warptiling 64
-//#define TM_Warptiling 8
-//#define TN_Warptiling 4
-//#define WMITER        2
-//#define WNITER        2
-//const int WARP_TILING_MAX_NUM_THREADS = 128;
-////
-//// for RTX3080Ti
-#define BM_Warptiling 64
-#define BK_Warptiling 32
+#define BM_Warptiling 128
+#define BK_Warptiling 64
 #define BN_Warptiling 128
-#define WM_Warptiling 32
+#define WM_Warptiling 64
 #define WN_Warptiling 64
-#define TM_Warptiling 4
+#define TM_Warptiling 8
 #define TN_Warptiling 4
 #define WMITER        2
 #define WNITER        2
 const int WARP_TILING_MAX_NUM_THREADS = 128;
+////
+//// for RTX3080Ti
+//#define BM_Warptiling 64
+//#define BK_Warptiling 32
+//#define BN_Warptiling 128
+//#define WM_Warptiling 32
+//#define WN_Warptiling 64
+//#define TM_Warptiling 4
+//#define TN_Warptiling 4
+//#define WMITER        2
+//#define WNITER        2
+//const int WARP_TILING_MAX_NUM_THREADS = 128;
 ////
 
 typedef int4 copy_batch_t;
@@ -633,7 +633,7 @@ __global__ void
 }
 
 
-/* WMMA GPU kernel */
+/* WMMA GPU kernel, modified based on this example: https://github.com/NVIDIA/cuda-samples/tree/master/Samples/3_CUDA_Features/cudaTensorCoreGemm */
 #define WARP_REPEAT_X 4
 #define WARP_REPEAT_Y 2
 __global__ void wmma_kernel(T_ELEM_IN *a, T_ELEM_IN *b, T_ELEM_OUT *c,

@@ -555,7 +555,7 @@ __global__ void
 }
 
 
-/* WMMA GPU kernel */
+/* WMMA GPU kernel, modified based on this example: https://github.com/NVIDIA/cuda-samples/tree/master/Samples/3_CUDA_Features/cudaTensorCoreGemm, without batched memory copy */
 #define WARP_REPEAT_X 4
 #define WARP_REPEAT_Y 2
 __global__ void wmma_kernel(T_ELEM_IN *a, T_ELEM_IN *b, T_ELEM_OUT *c,
