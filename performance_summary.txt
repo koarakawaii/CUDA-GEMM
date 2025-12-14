@@ -1,0 +1,174 @@
+half_in_float_out_global (M = 4096 , K = 131072 , N = 16384)
+    RTX3080Ti
+        OpenMP (64 threads):        159.0635 s
+        Hand-carved GEMM:            20.9098 s (tpB_x 16          tpB_y 8
+                                                warpK_stride_shared 1)
+        WMMA:                         1.0058 s (tpB_x 128         tpB_y 8
+                                                warpK_stride_shared 2)
+        cuBLAS GemmEx                 0.2452 s
+    RTX5090
+        OpenMP (64 threads):        178.0598 s
+        Hand-carved GEMM:             9.8782 s (tpB_x 16          tpB_y 8
+                                                warpK_stride_shared 2)
+        WMMA:                         0.3096 s (tpB_x 128         tpB_y 8
+                                                warpK_stride_shared 2)
+        cuBLAS GemmEx                 0.1076 s
+
+half_in_float_out_shared (M = 4096 , K = 131072 , N = 16384)
+    RTX3080Ti
+        OpenMP (64 threads):        194.5190 s
+        Hand-carved GEMM:             7.7972 s (tpB_x 16          tpB_y 8
+                                                warpK_stride_shared 8)
+        Hand-carved GEMM_1DTiling:    3.9881 s (THREADSIZE=32
+                                                tpB_x 128         tpB_y 8
+                                                warpK_stride_shared 8)
+        Hand-carved GEMM_2DTiling:    1.6386 s (THREADTILE_X=8    THREADTILE_Y=8
+                                                tpB_x 16          tpB_y 8
+                                                warpK_stride_shared 8)
+        Hand-carved GEMM_WarpTiling:  1.8514 s (BM_Warptiling 64  BK_Warptiling 32 BN_Warptiling 128
+                                                WM_Warptiling 32  WN_Warptiling 64
+                                                TM_Warptiling 4   TN_Warptiling 4
+                                                WMITER        2   WNITER        2
+                                                WARP_TILING_MAX_NUM_THREADS = 128)
+        WMMA:                         1.7971 s (tpB_x 16         tpB_y 16
+                                                warpK_stride_shared 4)
+        cuBLAS GemmEx                 0.2524 s
+    RTX5090
+        OpenMP (64 threads):        168.5156 s
+        Hand-carved GEMM:             4.2898 s (tpB_x 16          tpB_y 8
+                                                warpK_stride_shared 2)
+        Hand-carved GEMM_1DTiling:    1.5057 s (THREADTILE 32
+                                                tpB_x 128         tpB_y 8
+                                                warpK_stride_shared 2)
+        Hand-carved GEMM_2DTiling:    0.4055 s (THREADTILE_X 8    THREADTILE_Y=16)
+                                                tpB_x 16          tpB_y 8
+                                                warpK_stride_shared 2)
+        Hand-carved GEMM_WarpTiling:  0.4047 s (BM_Warptiling 128 BK_Warptiling 64 BN_Warptiling 128
+                                                WM_Warptiling 64  WN_Warptiling 64
+                                                TM_Warptiling 8   TN_Warptiling 4
+                                                WMITER        2   WNITER        2
+                                                WARP_TILING_MAX_NUM_THREADS = 128)
+        WMMA:                         0.4772 s (tpB_x 32         tpB_y 16
+                                                warpK_stride_shared 2)
+        cuBLAS GemmEx                 0.1031 s
+---------------------------------------------------------------
+tf32_in_float_out_global (M = 4096 , K = 131072 , N = 16384)
+    RTX3080Ti
+        OpenMP (64 threads):        193.1230 s
+        Hand-carved GEMM:            21.8715 s (tpB_x 16          tpB_y 8
+                                                warpK_stride_shared 2)
+        Hand-carved GEMM-float4:      7.2016 s (tpB_x 128         tpB_y 8
+                                                warpK_stride_shared 1)
+        WMMA:                         2.1145 s (tpB_x 128         tpB_y 8
+                                                warpK_stride_shared 1)
+        cuBLAS GemmEx                 0.4900 s
+        cuBLAS Sgemm                  0.7536 s
+    RTX5090
+        OpenMP (64 threads):        193.6070 s
+        Hand-carved GEMM:             9.7648 s (tpB_x 16          tpB_y 8
+                                                warpK_stride_shared 2)
+        Hand-carved GEMM-float4:      2.6260 s (tpB_x 128         tpB_y 8
+                                                warpK_stride_shared 2)
+        WMMA:                         0.6545 s (tpB_x 128         tpB_y 8
+                                                warpK_stride_shared 2)
+        cuBLAS GemmEx                 0.1916 s
+        cuBLAS Sgemm                  0.2677 s
+
+tf32_in_float_out_shared (M = 4096 , K = 131072 , N = 16384)
+    RTX3080Ti
+        OpenMP (64 threads):        209.4562 s
+        Hand-carved GEMM:             8.5273 s (tpB_x 16          tpB_y 8
+                                                warpK_stride_shared 2)
+        Hand-carved GEMM_1DTiling:    2.8311 s (THREADSIZE=8
+                                                tpB_x 16          tpB_y 8
+                                                warpK_stride_shared 2)
+        Hand-carved GEMM_2DTiling:    1.4620 s (THREADTILE_X=8,   THREADTILE_Y=8
+                                                tpB_x 16          tpB_y 8
+                                                warpK_stride_shared 2)
+        Hand-carved GEMM_WarpTiling:  1.9087 s (BM_Warptiling 64  BK_Warptiling 16 BN_Warptiling 128
+                                                WM_Warptiling 32  WN_Warptiling 64
+                                                TM_Warptiling 4   TN_Warptiling 4
+                                                WMITER        2   WNITER        2
+                                                WARP_TILING_MAX_NUM_THREADS = 128)
+        WMMA:                         2.4188 s (tpB_x 16         tpB_y 8
+                                                warpK_stride_shared 4)
+        cuBLAS GemmEx                 0.4981 s
+        cuBLAS Sgemm                  0.7541 s
+    RTX5090
+        OpenMP (64 threads):        204.1041 s
+        Hand-carved GEMM:             3.5868 s (tpB_x 16          tpB_y 8
+                                                warpK_stride_shared 2)
+        Hand-carved GEMM_1DTiling:    1.0337 s (THREADTILE 8
+                                                tpB_x 16          tpB_y 8
+                                                warpK_stride_shared 4)
+        Hand-carved GEMM_2DTiling:    0.3939 s (THREADTILE_X 8    THREADTILE_Y 16
+                                                tpB_x 16          tpB_y 8
+                                                warpK_stride_shared 4)
+        Hand-carved GEMM_WarpTiling:  0.4270 s (BM_Warptiling 128 BK_Warptiling 32 BN_Warptiling 128
+                                                WM_Warptiling 64  WN_Warptiling 64
+                                                TM_Warptiling 8   TN_Warptiling 4
+                                                WMITER        2   WNITER        2
+                                                WARP_TILING_MAX_NUM_THREADS 128)
+        WMMA:                         0.8630 s (tpB_x 16         tpB_y 8
+                                                warpK_stride_shared 4)
+        cuBLAS GemmEx                 0.1916 s
+        cuBLAS Sgemm                  0.2666 s
+
+---------------------------------------------------------------
+double_in_double_out_global (M = 4096 , K = 65536 , N = 16384)
+    RTX3080Ti
+        OpenMP (64 threads):        109.4157 s
+        Hand-carved GEMM:            15.3646 s (tpB_x 128         tpB_y 8
+                                                warpK_stride_shared 2)
+        WMMA:                        16.4692 s (tpB_x 128         tpB_y 8
+                                                warpK_stride_shared 2)
+        cuBLAS GemmEx                16.4425 s
+        cuBLAS Dgemm                 16.4318 s
+    RTX5090
+        OpenMP (64 threads):        148.5257 s
+        Hand-carved GEMM:             7.5760 s (tpB_x 128         tpB_y 8
+                                                warpK_stride_shared 2)
+        WMMA:                         5.0753 s (tpB_x 128         tpB_y 8
+                                                warpK_stride_shared 2)
+        cuBLAS GemmEx                 5.0680 s
+        cuBLAS Dgemm                  5.0334 s
+
+double_in_double_out_shared (M = 4096 , K = 65536 , N = 16384)
+    RTX3080Ti
+        OpenMP (64 threads):        118.1077 s
+        Hand-carved GEMM:            14.5093 s (tpB_x 16         tpB_y 16
+                                                warpK_stride_shared 4)
+        Hand-carved GEMM_1DTiling:   14.3710 s (THREADSIZE=4
+                                                tpB_x 16         tpB_y 16
+                                                warpK_stride_shared 4)
+        Hand-carved GEMM_2DTiling:   14.4566 s (THREADTILE_X=4 THREADTILE_Y=2
+                                                tpB_x 16         tpB_y 16
+                                                warpK_stride_shared 2)
+        Hand-carved GEMM_WarpTiling: 14.5016 s (BM_Warptiling 32 BK_Warptiling 8 BN_Warptiling 32
+                                                WM_Warptiling 16 WN_Warptiling 32
+                                                TM_Warptiling 2  TN_Warptiling 2
+                                                WMITER        2  WNITER        2
+                                                WARP_TILING_MAX_NUM_THREADS 64)
+        WMMA:                        16.6748 s (tpB_x 8          tpB_y 8
+                                                warpK_stride_shared 4)
+        cuBLAS GemmEx                16.6873 s
+        cuBLAS Dgemm                 16.6873 s
+    RTX5090
+        OpenMP (64 threads):        126.4734 s
+        Hand-carved GEMM:             4.5492 s (tpB_x 16         tpB_y 16
+                                                warpK_stride_shared 2)
+        Hand-carved GEMM_1DTiling:    4.4887 s (THREADTILE 4
+                                                tpB_x 16         tpB_y 16
+                                                warpK_stride_shared 2)
+        Hand-carved GEMM_2DTiling:    4.4465 s (THREADTILE_X 4   THREADTILE_Y 2)
+                                                tpB_x 16          tpB_y 16
+                                                warpK_stride_shared 2)
+        Hand-carved GEMM_WarpTiling:  4.4472 s (BM_Warptiling 32 BK_Warptiling 8  BN_Warptiling 32
+                                                WM_Warptiling 16 WN_Warptiling 32
+                                                TM_Warptiling 2  TN_Warptiling 2
+                                                WMITER        2  WNITER        2
+                                                WARP_TILING_MAX_NUM_THREADS 64)
+        WMMA:                         5.0604 s (tpB_x 16         tpB_y 16
+                                                warpK_stride_shared 2)
+        cuBLAS GemmEx                 5.0677 s
+        cuBLAS Dgemm                  5.0289 s
