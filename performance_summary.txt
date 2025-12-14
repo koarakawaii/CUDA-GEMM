@@ -30,8 +30,10 @@ half_in_float_out_shared (M = 4096 , K = 131072 , N = 16384)
                                                 TM_Warptiling 4   TN_Warptiling 4
                                                 WMITER        2   WNITER        2
                                                 WARP_TILING_MAX_NUM_THREADS = 128)
-        WMMA:                         1.7971 s (tpB_x 16         tpB_y 16
-                                                warpK_stride_shared 4)
+        WMMA:                         0.3588 s (tpB_x 32         tpB_y 8
+                                                WARP_REPEAT_X 4  WARP_REPEAT_Y 2
+                                                warpK_stride_shared 4
+                                                SKEW_MINE 8)
         cuBLAS GemmEx                 0.2524 s
     RTX5090
         OpenMP (64 threads):        168.5156 s
@@ -40,7 +42,7 @@ half_in_float_out_shared (M = 4096 , K = 131072 , N = 16384)
         Hand-carved GEMM_1DTiling:    1.5057 s (THREADTILE 32
                                                 tpB_x 128         tpB_y 8
                                                 warpK_stride_shared 2)
-        Hand-carved GEMM_2DTiling:    0.4055 s (THREADTILE_X 8    THREADTILE_Y=16)
+        Hand-carved GEMM_2DTiling:    0.3982 s (THREADTILE_X 8    THREADTILE_Y=16)
                                                 tpB_x 16          tpB_y 8
                                                 warpK_stride_shared 2)
         Hand-carved GEMM_WarpTiling:  0.4047 s (BM_Warptiling 128 BK_Warptiling 64 BN_Warptiling 128
@@ -48,8 +50,10 @@ half_in_float_out_shared (M = 4096 , K = 131072 , N = 16384)
                                                 TM_Warptiling 8   TN_Warptiling 4
                                                 WMITER        2   WNITER        2
                                                 WARP_TILING_MAX_NUM_THREADS = 128)
-        WMMA:                         0.4772 s (tpB_x 32         tpB_y 16
-                                                warpK_stride_shared 2)
+        WMMA:                         0.1308 s (tpB_x 32         tpB_y 8
+                                                WARP_REPEAT_X 4  WARP_REPEAT_Y 2
+                                                warpK_stride_shared 4
+                                                SKEW_MINE 8)
         cuBLAS GemmEx                 0.1031 s
 ---------------------------------------------------------------
 tf32_in_float_out_global (M = 4096 , K = 131072 , N = 16384)
@@ -90,8 +94,10 @@ tf32_in_float_out_shared (M = 4096 , K = 131072 , N = 16384)
                                                 TM_Warptiling 4   TN_Warptiling 4
                                                 WMITER        2   WNITER        2
                                                 WARP_TILING_MAX_NUM_THREADS = 128)
-        WMMA:                         2.4188 s (tpB_x 16         tpB_y 8
-                                                warpK_stride_shared 4)
+        WMMA:                         0.8600 s (tpB_x 32         tpB_y 8
+                                                WARP_REPEAT_X 4  WARP_REPEAT_Y 2
+                                                warpK_stride_shared 4
+                                                SKEW_MINE 8)
         cuBLAS GemmEx                 0.4981 s
         cuBLAS Sgemm                  0.7541 s
     RTX5090
@@ -109,8 +115,10 @@ tf32_in_float_out_shared (M = 4096 , K = 131072 , N = 16384)
                                                 TM_Warptiling 8   TN_Warptiling 4
                                                 WMITER        2   WNITER        2
                                                 WARP_TILING_MAX_NUM_THREADS 128)
-        WMMA:                         0.8630 s (tpB_x 16         tpB_y 8
-                                                warpK_stride_shared 4)
+        WMMA:                         0.3779 s (tpB_x 32         tpB_y 8
+                                                WARP_REPEAT_X 4  WARP_REPEAT_Y 2
+                                                warpK_stride_shared 4
+                                                SKEW_MINE 8)
         cuBLAS GemmEx                 0.1916 s
         cuBLAS Sgemm                  0.2666 s
 
@@ -149,10 +157,12 @@ double_in_double_out_shared (M = 4096 , K = 65536 , N = 16384)
                                                 TM_Warptiling 2  TN_Warptiling 2
                                                 WMITER        2  WNITER        2
                                                 WARP_TILING_MAX_NUM_THREADS 64)
-        WMMA:                        16.6748 s (tpB_x 8          tpB_y 8
-                                                warpK_stride_shared 4)
-        cuBLAS GemmEx                16.6873 s
-        cuBLAS Dgemm                 16.6873 s
+        WMMA:                        16.5784 s (tpB_x 8          tpB_y 8
+                                                WARP_REPEAT_X 4  WARP_REPEAT_Y 2
+                                                warpK_stride_shared 4
+                                                SKEW_MINE 4)
+        cuBLAS GemmEx                16.4309 s
+        cuBLAS Dgemm                 16.4300 s
     RTX5090
         OpenMP (64 threads):        126.4734 s
         Hand-carved GEMM:             4.5492 s (tpB_x 16         tpB_y 16
@@ -163,12 +173,14 @@ double_in_double_out_shared (M = 4096 , K = 65536 , N = 16384)
         Hand-carved GEMM_2DTiling:    4.4465 s (THREADTILE_X 4   THREADTILE_Y 2)
                                                 tpB_x 16          tpB_y 16
                                                 warpK_stride_shared 2)
-        Hand-carved GEMM_WarpTiling:  4.4472 s (BM_Warptiling 32 BK_Warptiling 8  BN_Warptiling 32
+        Hand-carved GEMM_WarpTiling:  4.4465 s (BM_Warptiling 32 BK_Warptiling 8  BN_Warptiling 32
                                                 WM_Warptiling 16 WN_Warptiling 32
                                                 TM_Warptiling 2  TN_Warptiling 2
                                                 WMITER        2  WNITER        2
                                                 WARP_TILING_MAX_NUM_THREADS 64)
-        WMMA:                         5.0604 s (tpB_x 16         tpB_y 16
-                                                warpK_stride_shared 2)
+        WMMA:                         5.0483 s (tpB_x 8          tpB_y 8
+                                                WARP_REPEAT_X 4  WARP_REPEAT_Y 2
+                                                warpK_stride_shared 4
+                                                SKEW_MINE 4)
         cuBLAS GemmEx                 5.0677 s
         cuBLAS Dgemm                  5.0289 s
