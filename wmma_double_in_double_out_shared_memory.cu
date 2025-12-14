@@ -62,11 +62,11 @@ const int WMMA_N              = 8;
 const int WMMA_K              = 4;
 const int warpK_stride_shared = 4; // use shared memory to cache matrix A and B; warpK_stride_shared is the sum of the number of WMMA_M*WMMA_K blocks for matrix A + WMMA_K*WMMA_N blocks for matrix B that can be cached by shared memory
 
-const long seed               = 152897564;
+const long   seed             = 152897564;
 const double alpha            = 1.0;
 const double beta             = 1.0;
 #ifdef TIMING_FLAG
-const float ms_to_sec         = 1.0e3;
+const float  ms_to_sec        = 1.0e3;
 #endif
 
 

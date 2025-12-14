@@ -37,7 +37,7 @@ const int WMMA_N       = 16;
 const int WMMA_K       = 8;
 const int warpK_stride = 2;
 
-const long seed        = 152897564;
+const long  seed       = 152897564;
 const float alpha      = 1.0f;
 const float beta       = 1.0f;
 #ifdef TIMING_FLAG
