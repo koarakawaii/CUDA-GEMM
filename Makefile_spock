@@ -1,21 +1,21 @@
 #*****************for RTX3080Ti cuda 12.1****************************
-CUDIR   := /software/cuda/12.1
+#CUDIR   := /software/cuda/12.1
 #*****************for RTX5090 cuda 13.0****************************
-#CUDIR   := /work1/koarakawaii/NVIDIA_HPC_SDK/nvidia_hpc_sdk/Linux_x86_64/25.9/compilers
+CUDIR   := /work1/koarakawaii/NVIDIA_HPC_SDK/nvidia_hpc_sdk/Linux_x86_64/25.9/compilers
 #***********************************************************
 
 #*****************for RTX3080Ti*****************************
 ##https://stackoverflow.com/questions/35656294/cuda-how-to-use-arch-and-code-and-sm-vs-compute
-NVFLAGS_ARCH := -arch=compute_86 -code=sm_86,compute_86
+#NVFLAGS_ARCH := -arch=compute_86 -code=sm_86,compute_86
 #*****************for RTX5090*****************************
-#NVFLAGS_ARCH := -arch=compute_120 -code=sm_120,compute_120
+NVFLAGS_ARCH := -arch=compute_120 -code=sm_120,compute_120
 
 #*****************for RTX3080Ti*****************************
 LDFLAGS :=-lm -lcublas -lgomp
 #*****************for RTX5090*****************************
 #LDFLAGS :=-L/work1/koarakawaii/NVIDIA_HPC_SDK/nvidia_hpc_sdk/Linux_x86_64/25.9/math_libs/13.0/targets/x86_64-linux/lib -lm -lcublas -lgomp
 
-#SUFFIX=_RTX5090
+SUFFIX=_RTX5090
 TIMING_FLAG=-DTIMING_FLAG
 PERFORMANCE_FLAG=-DPERFORMANCE
 NVCC    := $(CUDIR)/bin/nvcc
@@ -26,25 +26,25 @@ exec=wmma_half_in_float_out_global_memory$(SUFFIX) wmma_half_in_float_out_shared
 all: $(exec)
 
 %.o: %.cu
-	$(NVCC) $(NVFLAGS) $(TIMING_FLAG) -c -o $@ $<
+	$(NVCC) $(NVFLAGS) $(TIMING_FLAG) $(PERFORMANCE_FLAG) -c -o $@ $<
 
 wmma_half_in_float_out_global_memory$(SUFFIX): wmma_half_in_float_out_global_memory.o
-	$(NVCC) $(NVFLAGS_ARCH) $(TIMING_FLAG) -o $@ $^ $(LDFLAGS)
+	$(NVCC) $(NVFLAGS_ARCH) $(TIMING_FLAG) $(PERFORMANCE_FLAG) -o $@ $^ $(LDFLAGS)
 
 wmma_half_in_float_out_shared_memory$(SUFFIX): wmma_half_in_float_out_shared_memory.o
-	$(NVCC) $(NVFLAGS_ARCH) $(TIMING_FLAG) -o $@ $^ $(LDFLAGS)
+	$(NVCC) $(NVFLAGS_ARCH) $(TIMING_FLAG) $(PERFORMANCE_FLAG) -o $@ $^ $(LDFLAGS)
 
 wmma_tf32_in_float_out_global_memory$(SUFFIX): wmma_tf32_in_float_out_global_memory.o
-	$(NVCC) $(NVFLAGS_ARCH) $(TIMING_FLAG) -o $@ $^ $(LDFLAGS)
+	$(NVCC) $(NVFLAGS_ARCH) $(TIMING_FLAG) $(PERFORMANCE_FLAG) -o $@ $^ $(LDFLAGS)
 
 wmma_tf32_in_float_out_shared_memory$(SUFFIX): wmma_tf32_in_float_out_shared_memory.o
-	$(NVCC) $(NVFLAGS_ARCH) $(TIMING_FLAG) -o $@ $^ $(LDFLAGS)
+	$(NVCC) $(NVFLAGS_ARCH) $(TIMING_FLAG) $(PERFORMANCE_FLAG) -o $@ $^ $(LDFLAGS)
 
 wmma_double_in_double_out_global_memory$(SUFFIX): wmma_double_in_double_out_global_memory.o
-	$(NVCC) $(NVFLAGS_ARCH) $(TIMING_FLAG) -o $@ $^ $(LDFLAGS)
+	$(NVCC) $(NVFLAGS_ARCH) $(TIMING_FLAG) $(PERFORMANCE_FLAG) -o $@ $^ $(LDFLAGS)
 
 wmma_double_in_double_out_shared_memory$(SUFFIX): wmma_double_in_double_out_shared_memory.o
-	$(NVCC) $(NVFLAGS_ARCH) $(TIMING_FLAG) -o $@ $^ $(LDFLAGS)
+	$(NVCC) $(NVFLAGS_ARCH) $(TIMING_FLAG) $(PERFORMANCE_FLAG) -o $@ $^ $(LDFLAGS)
 
 clean:
 	rm -f *.o ${exec}
