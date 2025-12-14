@@ -64,7 +64,7 @@ typedef int4 copy_batch_t;
 const int WMMA_M              = 16;
 const int WMMA_N              = 16;
 const int WMMA_K              = 16;
-const int warpK_stride_shared = 4; // use shared memory to cache matrix A and B; warpK_stride_shared is the sum of the number of WMMA_M*WMMA_K blocks for matrix A + WMMA_K*WMMA_N blocks for matrix B that can be cached by shared memory
+const int warpK_stride_shared = 8; // use shared memory to cache matrix A and B; warpK_stride_shared is the sum of the number of WMMA_M*WMMA_K blocks for matrix A + WMMA_K*WMMA_N blocks for matrix B that can be cached by shared memory
 
 const long  seed              = 152897564;
 const float alpha             = 1.0f;
@@ -301,9 +301,11 @@ __global__ void
                                      int M,  int N, int K, int BM, int BN,
                                      T_ELEM_OUT alpha, T_ELEM_OUT beta)
 {
-    const int lda         = K;
-    const int ldb         = N;
-    const int ldc         = N;
+    const int lda           = K;
+    const int ldb           = N;
+    const int ldc           = N;
+    const int thread_idx    = threadIdx.x + blockDim.x * threadIdx.y;
+    const int total_threads = blockDim.x * blockDim.y;
 
     extern __shared__ T_ELEM_IN shared_buffer[];
 
@@ -312,11 +314,11 @@ __global__ void
     T_ELEM_IN  a_col_cache[THREADTILE_Y]; // cache the column of A for a given coloumn index (i+j) when doing accumulation
     T_ELEM_IN  b_row_cache[THREADTILE_X]; // cache the row of B for a given row index (i+j) when doing accumulation
 
-    int threadtile_idx_y = (THREADTILE_Y*threadIdx.y) + BM*blockIdx.y;     // BM = THREADTILE_Y*blockDim.y
+    int threadtile_idx_y = BM*blockIdx.y;     // BM = THREADTILE_Y*blockDim.y
     while ( threadtile_idx_y < (BM * (int)((M + BM - 1) / BM)) )
     {
         // in order to realize memory coalescing for threads in the same wrap, we use threadIdx.x+blockDim.x*inner_idx instead of THREADTILE_X*threadIdx.x+inner_idx for mapping along row direction for b
-        int threadtile_idx_x = threadIdx.x + BN*blockIdx.x; // BN = THREADTILE_X*blockDim.x
+        int threadtile_idx_x = BN*blockIdx.x; // BN = THREADTILE_X*blockDim.x
         while ( threadtile_idx_x < (BN * (int)((N + BN - 1) / BN)) )
         {
             int aRow0                                 = threadtile_idx_y;
@@ -325,6 +327,7 @@ __global__ void
 
             for (int i=0; i<K; i+=(warpK_stride_shared*WMMA_K))
             {
+                // older version, but faster than new version for this kernel
                 __syncthreads();
                 int thread_idx_x = threadIdx.x;
                 while (thread_idx_x < (warpK_stride_shared*WMMA_K))
@@ -333,7 +336,7 @@ __global__ void
                     #pragma unroll
                     for (int inner_idx=0; inner_idx<THREADTILE_Y; ++inner_idx)
                     {
-                        int aRow                                                                                            = aRow0 + inner_idx;
+                        int aRow                                                                                            = aRow0 + (THREADTILE_Y*threadIdx.y) + inner_idx;
                         if ( (aRow < M) && (aCol < K) )
                             a_shared_buffer[thread_idx_x+(THREADTILE_Y*threadIdx.y+inner_idx)*(warpK_stride_shared*WMMA_K)] = a[aCol + aRow*lda];
                         else
@@ -344,20 +347,79 @@ __global__ void
                 int thread_idx_y  = threadIdx.y;
                 while (thread_idx_y < (warpK_stride_shared*WMMA_K))
                 {
-                    int bRow                                                                    = i + thread_idx_y;
+                    int bRow                                                                      = i + thread_idx_y;
                     #pragma unroll
                     for (int inner_idx=0; inner_idx<THREADTILE_X; ++inner_idx)
                     {
-                        int bCol                                                                = bCol0 + blockDim.x*inner_idx;
+                        int bCol                                                                  = bCol0 + threadIdx.x + blockDim.x*inner_idx;
                         // in order to realize memory coalescing for threads in the same wrap, we use threadIdx.x+blockDim.x*inner_idx instead of THREADTILE_X*threadIdx.x+inner_idx for mapping along row direction for b
                         if ( (bRow < K) && (bCol < N) )
-                            b_shared_buffer[(threadIdx.x+blockDim.x*inner_idx)+thread_idx_y*BN] = b[bCol + bRow*ldb];
+                            b_shared_buffer[(threadIdx.x+blockDim.x*inner_idx)+thread_idx_y*(BN)] = b[bCol + bRow*ldb];
                         else
-                            b_shared_buffer[(threadIdx.x+blockDim.x*inner_idx)+thread_idx_y*BN] = 0.0;
+                            b_shared_buffer[(threadIdx.x+blockDim.x*inner_idx)+thread_idx_y*(BN)] = 0.0;
                     }
-                    thread_idx_y                                                               += blockDim.y;
+                    thread_idx_y                                                                 += blockDim.y;
                 }
                 __syncthreads();
+                //
+
+                //__syncthreads();
+                ////// !!!!only use this when BM = BN !!!!!
+                //////assert (BN == BM);
+                ////int idx_copy = thread_idx*copy_batch_factor;
+                ////int idx_copy_min      = (BM > BN) ? BN*(warpK_stride_shared*WMMA_K) : BM*(warpK_stride_shared*WMMA_K);
+                ////int aCol_shared, aRow_shared, aCol, aRow;
+                ////int bCol_shared, bRow_shared, bCol, bRow;
+                ////#pragma unroll
+                ////for (; idx_copy<idx_copy_min; idx_copy+=copy_batch_factor*total_threads)
+                ////{
+                ////    aCol_shared = idx_copy % (warpK_stride_shared*WMMA_K);
+                ////    aCol        = i + aCol_shared;
+                ////    aRow_shared = idx_copy / (warpK_stride_shared*WMMA_K);
+                ////    aRow        = aRow0 + aRow_shared;
+                ////    if ( (aRow < M) && (aCol < K) )
+                ////        *((copy_batch_t*)&(a_shared_buffer[aCol_shared+aRow_shared*(warpK_stride_shared*WMMA_K)])) = *((copy_batch_t*)&(a[aCol + aRow*lda]));
+                ////    bCol_shared = idx_copy % BN;
+                ////    bCol        = bCol0 + bCol_shared;
+                ////    bRow_shared = idx_copy / BN;
+                ////    bRow        = i + bRow_shared;
+                ////    if ( (bRow < K) && (bCol < N) )
+                ////        *((copy_batch_t*)&(b_shared_buffer[bCol_shared+bRow_shared*(BN)]))                         = *((copy_batch_t*)&(b[bCol + bRow*ldb]));
+                ////}
+                //////
+
+                //// ~~~~Use this for general size of (BM, BN); use 1st half of the threads to copy matrix a, and 2nd half of the threads to copy matrix b~~~~
+                //if (thread_idx < (total_threads)/2)
+                //{
+                //    int aCol_shared, aRow_shared, aCol, aRow;
+                //    #pragma unroll
+                //    for (int idx_copy = thread_idx*copy_batch_factor; idx_copy<BM*(warpK_stride_shared*WMMA_K); idx_copy+=copy_batch_factor*total_threads/2)
+                //    {
+                //        aCol_shared = idx_copy % (warpK_stride_shared*WMMA_K);
+                //        aCol        = i + aCol_shared;
+                //        aRow_shared = idx_copy / (warpK_stride_shared*WMMA_K);
+                //        aRow        = aRow0 + aRow_shared;
+                //        if ( (aRow < M) && (aCol < K) )
+                //            *((copy_batch_t*)&(a_shared_buffer[aCol_shared+aRow_shared*(warpK_stride_shared*WMMA_K)])) = *((copy_batch_t*)&(a[aCol + aRow*lda]));
+                //    }
+                //}
+                //else
+                //{
+                //    int bCol_shared, bRow_shared, bCol, bRow;
+                //    #pragma unroll
+                //    for (int idx_copy = (thread_idx-total_threads/2)*copy_batch_factor; idx_copy<(warpK_stride_shared*WMMA_K)*BN; idx_copy+=copy_batch_factor*total_threads/2)
+                //    {
+                //        bCol_shared = idx_copy % BN;
+                //        bCol        = bCol0 + bCol_shared;
+                //        bRow_shared = idx_copy / BN;
+                //        bRow        = i + bRow_shared;
+                //        if ( (bRow < K) && (bCol < N) )
+                //            *((copy_batch_t*)&(b_shared_buffer[bCol_shared+bRow_shared*(BN)])) = *((copy_batch_t*)&(b[bCol + bRow*ldb]));
+                //    }
+                //}
+                ////
+                //__syncthreads();
+                //
 
                 #pragma unroll
                 for (int j=0; j<(warpK_stride_shared*WMMA_K); ++j)
@@ -369,15 +431,15 @@ __global__ void
                         {
                             int aRow_shared = (threadIdx.y*THREADTILE_Y) + inner_idx;
                             a_col_cache[inner_idx] = a_shared_buffer[j + aRow_shared*(warpK_stride_shared*WMMA_K)];
-                            //int aRow               = aRow0 + inner_idx;
+                            //int aRow               = aRow0 + aRow_shared;
                             //a_col_cache[inner_idx] = a[(i+j) + aRow*lda];
                         }
                         #pragma unroll
                         for (int inner_idx=0; inner_idx<THREADTILE_X; ++inner_idx)
                         {
-                            int bCol_shared = threadIdx.x + (blockDim.x*inner_idx);
-                            b_row_cache[inner_idx] = b_shared_buffer[bCol_shared + j*BN];
-                            //int bCol               = bCol0 + blockDim.x*inner_idx;
+                            int bCol_shared        = threadIdx.x + (blockDim.x*inner_idx);
+                            b_row_cache[inner_idx] = b_shared_buffer[bCol_shared + j*(BN)];
+                            //int bCol               = bCol0 + bCol_shared;
                             //b_row_cache[inner_idx] = b[bCol + (i+j)*ldb];
                         }
                         #pragma unroll
@@ -388,8 +450,8 @@ __global__ void
                             {
                                 acc[inner_idx_M*THREADTILE_X + inner_idx_N]
                                                += (T_ELEM_OUT)a_col_cache[inner_idx_M] * (T_ELEM_OUT)b_row_cache[inner_idx_N];
-                                //int aRow            = aRow0 + inner_idx_M;
-                                //int bCol            = bCol0 + blockDim.x*inner_idx_N;
+                                //int aRow            = aRow0 + (THREADTILE_Y*threadIdx.y) + inner_idx_M;
+                                //int bCol            = bCol0 + threadIdx.x + blockDim.x*inner_idx_N;
                                 //if ( (aRow < M) && (bCol < N) )
                                 //    acc[inner_idx_M*THREADTILE_X + inner_idx_N] += (T_ELEM_OUT)a[(i+j) + aRow*lda] * (T_ELEM_OUT)b[bCol + (i+j)*ldb];
                             }
@@ -406,8 +468,8 @@ __global__ void
                 #pragma unroll
                 for (int inner_idx_N=0; inner_idx_N<THREADTILE_X; ++inner_idx_N)
                 {
-                    int aRow               = aRow0 + inner_idx_M;
-                    int bCol               = bCol0 + blockDim.x*inner_idx_N;
+                    int aRow               = aRow0 + (THREADTILE_Y*threadIdx.y) + inner_idx_M;
+                    int bCol               = bCol0 + threadIdx.x + blockDim.x*inner_idx_N;
                     if ( (aRow < M) && (bCol < N) )
                         c[bCol + aRow*ldc] = alpha*acc[inner_idx_M*THREADTILE_X + inner_idx_N] + beta*c[bCol + aRow*ldc];
                 }
@@ -603,6 +665,7 @@ __global__ void wmma_kernel(T_ELEM_IN *a, T_ELEM_IN *b, T_ELEM_OUT *c,
     const int warp_idx          = thread_idx / WARPSIZE;
     const int THREADTILE_WMMA_Y = BM / blockDim.y;
     //const int THREADTILE_WMMA_X = BN / blockDim.x;
+    const int total_threads    = blockDim.x * blockDim.y;
 
     // Declare the fragments
     wmma::fragment<wmma::matrix_a,    WMMA_M, WMMA_N, WMMA_K, T_ELEM_IN, wmma::row_major> a_frag[WARP_REPEAT_Y];
@@ -615,7 +678,6 @@ __global__ void wmma_kernel(T_ELEM_IN *a, T_ELEM_IN *b, T_ELEM_OUT *c,
 
     T_ELEM_IN *a_shared_buffer = &(shared_buffer[0]);
     T_ELEM_IN *b_shared_buffer = &(shared_buffer[BM*(warpK_stride_shared*WMMA_K+SKEW_MINE)]);
-    int total_threads          = blockDim.x * blockDim.y;
 
     int threadtile_idx_y = BM*blockIdx.y;     // BM = THREADTILE_WMMA_Y*blockDim.y
     while ( threadtile_idx_y < (BM * (int)((M + BM - 1) / BM)) )
@@ -638,7 +700,7 @@ __global__ void wmma_kernel(T_ELEM_IN *a, T_ELEM_IN *b, T_ELEM_OUT *c,
 
             for (int i=0; i<K; i+=(warpK_stride_shared*WMMA_K))
             {
-                //// Old version for global to shared memory copy, slower
+                //// older version for global to shared memory copy, slower
                 //__syncthreads();
                 //int thread_idx_x = threadIdx.x;
                 //while (thread_idx_x < (warpK_stride_shared*WMMA_K))
@@ -733,6 +795,7 @@ __global__ void wmma_kernel(T_ELEM_IN *a, T_ELEM_IN *b, T_ELEM_OUT *c,
                 }
                 //
                 __syncthreads();
+                //
 
                 #pragma unroll
                 for (int j=0; j<(warpK_stride_shared*WMMA_K); j+=WMMA_K)
@@ -1413,7 +1476,7 @@ int main(int argc, char* argv[])
 #ifdef TIMING_FLAG
     CUDA_CHECK_ERROR(cudaEventRecord(t_start,0));
 #endif
-    shmem_size = ( BM_2DTiling*(warpK_stride_shared * WMMA_K) + BN_2DTiling*(warpK_stride_shared * WMMA_K) ) *sizeof(T_ELEM_IN);
+    shmem_size = ( BM_2DTiling*(warpK_stride_shared * WMMA_K) + (BN_2DTiling)*(warpK_stride_shared * WMMA_K) ) *sizeof(T_ELEM_IN);
     if ( shmem_size > shmem_size_max )
     {
         printf("Shared memory size (%lu) > Maximum shared Memory size (%lu) !! Exit!!\n", shmem_size, shmem_size_max);
