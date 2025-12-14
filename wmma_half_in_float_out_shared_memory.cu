@@ -709,8 +709,7 @@ __global__ void wmma_kernel(T_ELEM_IN *a, T_ELEM_IN *b, T_ELEM_OUT *c,
                 //    #pragma unroll
                 //    for (int inner_idx=0; inner_idx<THREADTILE_WMMA_Y; ++inner_idx)
                 //    {
-                //        int aRow_shared                                                                      = THREADTILE_WMMA_Y*threadIdx.y + inner_idx; // version 1
-                //        //int aRow_shared                                                                    = threadIdx.y + blockDim.y*inner_idx;        // version 2
+                //        int aRow_shared                                                                      = THREADTILE_WMMA_Y*threadIdx.y + inner_idx;
                 //        int aRow                                                                             = aRow0 + aRow_shared;
                 //        if ( (aRow < M) && (aCol < K) )
                 //            a_shared_buffer[thread_idx_x+aRow_shared*(warpK_stride_shared*WMMA_K+SKEW_MINE)] = a[aCol + aRow*lda];
@@ -722,7 +721,7 @@ __global__ void wmma_kernel(T_ELEM_IN *a, T_ELEM_IN *b, T_ELEM_OUT *c,
                 //int thread_idx_y  = threadIdx.y;
                 //while (thread_idx_y < (warpK_stride_shared*WMMA_K))
                 //{
-                //    int bRow                                             = i + thread_idx_y;
+                //    int bRow                                                         = i + thread_idx_y;
                 //    #pragma unroll
                 //    for (int inner_idx=0; inner_idx<THREADTILE_WMMA_X; ++inner_idx)
                 //    {
@@ -830,7 +829,6 @@ __global__ void wmma_kernel(T_ELEM_IN *a, T_ELEM_IN *b, T_ELEM_OUT *c,
                 for (int idx_warp_x=0; idx_warp_x<WARP_REPEAT_X; ++idx_warp_x)
                 {
                     int cRow = aRow0 + (warp_idx/wpB_x + idx_warp_y*wpB_y)*WMMA_M;
-                    //int cRow = aRow0 + (warp_idx/wpB_x + idx_warp_y*wpB_y)*WMMA_M;
                     int cCol = bCol0 + (warp_idx%wpB_x + idx_warp_x*wpB_x)*WMMA_N;
                     if (cRow < M && cCol < N)
                     {
