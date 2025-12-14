@@ -69,7 +69,7 @@ const int warpK_stride_shared = 8; // use shared memory to cache matrix A and B;
 const long  seed              = 152897564;
 const float alpha             = 1.0f;
 const float beta              = 1.0f;
-const int   copy_batch_factor = sizeof(copy_batch_t)/sizeof(half);
+const int   copy_batch_factor = sizeof(copy_batch_t)/sizeof(T_ELEM_IN);
 #ifdef TIMING_FLAG
 const float ms_to_sec         = 1.0e3;
 #endif
@@ -116,6 +116,7 @@ inline bool CUBLAS_Check_Error( cublasStatus_t Return, const char *File, const i
    else
       return true;
 }
+
 
 #ifdef PERFORMANCE
 __global__ void __launch_bounds__(WARP_TILING_MAX_NUM_THREADS)
@@ -304,8 +305,8 @@ __global__ void
     const int lda           = K;
     const int ldb           = N;
     const int ldc           = N;
-    const int thread_idx    = threadIdx.x + blockDim.x * threadIdx.y;
-    const int total_threads = blockDim.x * blockDim.y;
+    //const int thread_idx    = threadIdx.x + blockDim.x * threadIdx.y;
+    //const int total_threads = blockDim.x * blockDim.y;
 
     extern __shared__ T_ELEM_IN shared_buffer[];
 
@@ -483,7 +484,6 @@ __global__ void
 
 
 /* taken from Kernel 10: Warptiling of https://siboehm.com/articles/22/CUDA-MMM , with some little bug fix */
-//__global__ void gemmWarptiling(T_ELEM_IN *a, T_ELEM_IN *b, T_ELEM_OUT *c,
 #ifdef PERFORMANCE
 __global__ void __launch_bounds__(WARP_TILING_MAX_NUM_THREADS)
 #else
@@ -709,8 +709,8 @@ __global__ void wmma_kernel(T_ELEM_IN *a, T_ELEM_IN *b, T_ELEM_OUT *c,
                 //    #pragma unroll
                 //    for (int inner_idx=0; inner_idx<THREADTILE_WMMA_Y; ++inner_idx)
                 //    {
-                //        int aRow_shared                                                                      = THREADTILE_WMMA_Y*threadIdx.y + inner_idx; //version 1
-                //        //int aRow_shared                                                                      = threadIdx.y + blockDim.y*inner_idx;      // version 2
+                //        int aRow_shared                                                                      = THREADTILE_WMMA_Y*threadIdx.y + inner_idx; // version 1
+                //        //int aRow_shared                                                                    = threadIdx.y + blockDim.y*inner_idx;        // version 2
                 //        int aRow                                                                             = aRow0 + aRow_shared;
                 //        if ( (aRow < M) && (aCol < K) )
                 //            a_shared_buffer[thread_idx_x+aRow_shared*(warpK_stride_shared*WMMA_K+SKEW_MINE)] = a[aCol + aRow*lda];
@@ -811,7 +811,7 @@ __global__ void wmma_kernel(T_ELEM_IN *a, T_ELEM_IN *b, T_ELEM_OUT *c,
                             {
                                 if (idx_warp_y == 0)
                                 {
-                                    wmma::load_matrix_sync(b_frag[idx_warp_x], b_shared_buffer + (warp_idx%wpB_x+idx_warp_x*wpB_x)*WMMA_N  + j*(BN+SKEW_MINE), BN+SKEW_MINE);
+                                    wmma::load_matrix_sync(b_frag[idx_warp_x], b_shared_buffer + (warp_idx%wpB_x+idx_warp_x*wpB_x)*WMMA_N + j*(BN+SKEW_MINE), BN+SKEW_MINE);
                                 }
                                 // Perform the matrix multiplication
                                 wmma::mma_sync(acc_frag[idx_warp_y][idx_warp_x], a_frag[idx_warp_y], b_frag[idx_warp_x], acc_frag[idx_warp_y][idx_warp_x]);
