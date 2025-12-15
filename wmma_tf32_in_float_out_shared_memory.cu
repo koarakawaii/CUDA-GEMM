@@ -666,8 +666,8 @@ __global__ void wmma_kernel(T_ELEM_IN *a, T_ELEM_IN *b, T_ELEM_OUT *c,
 
     const int thread_idx        = threadIdx.x + blockDim.x * threadIdx.y;
     const int warp_idx          = thread_idx / WARPSIZE;
-    const int THREADTILE_WMMA_Y = BM / blockDim.y;
-    const int THREADTILE_WMMA_X = BN / blockDim.x;
+    //const int THREADTILE_WMMA_Y = BM / blockDim.y;
+    //const int THREADTILE_WMMA_X = BN / blockDim.x;
     const int total_threads    = blockDim.x * blockDim.y;
 
     // Declare the fragments
